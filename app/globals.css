@@ -1,26 +1,283 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-outfit);
   --font-mono: var(--font-geist-mono);
-}
+  --font-heading: var(--font-outfit);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* SCALEUP brand tokens (from Figma) */
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-field: var(--field);
+  --color-title: var(--title);
+  --color-subtitle: var(--subtitle);
+  --color-shell: var(--shell);
+  --color-warn-text: var(--warn-text);
+  --color-faint: var(--faint);
+  --shadow-surface: var(--surface-shadow);
+  --shadow-surface-hover: var(--surface-shadow-hover);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-pop: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-collapsible-down: collapsible-down 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-collapsible-up: collapsible-up 0.2s ease-in;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes collapsible-down {
+    from { height: 0; opacity: 0; }
+    to { height: var(--radix-collapsible-content-height); opacity: 1; }
+  }
+  @keyframes collapsible-up {
+    from { height: var(--radix-collapsible-content-height); opacity: 1; }
+    to { height: 0; opacity: 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes wave {
+    0%, 60%, 100% { transform: rotate(0deg); }
+    10%, 30% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+  }
+  @keyframes wiggle {
+    0%, 85%, 100% { transform: rotate(0deg); }
+    88% { transform: rotate(-12deg); }
+    91% { transform: rotate(12deg); }
+    94% { transform: rotate(-8deg); }
+    97% { transform: rotate(6deg); }
+  }
+  @keyframes splash-bar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root {
+  --brand: #04b22f;
+  --brand-soft: #edfbf0;
+  --warn: #febf00;
+  --warn-soft: #fff8e0;
+  --field: #ebebeb;
+  --title: #1e1e1e;
+  --subtitle: #737373;
+  --shell: #f6f6f6;
+  --warn-text: #b88a00;
+  --faint: #b0b0b0;
+  --surface-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
+  --surface-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #04b22f;
+  --primary-foreground: #ffffff;
+  --secondary: #febf00;
+  --secondary-foreground: #ffffff;
+  --muted: #f3f3f3;
+  --muted-foreground: #737373;
+  --accent: #edfbf0;
+  --accent-foreground: #03872a;
+  --destructive: #dc2626;
+  --border: #e4e4e4;
+  --input: #e4e4e4;
+  --ring: #04b22f;
+  --chart-1: #04b22f;
+  --chart-2: #febf00;
+  --chart-3: #3b82f6;
+  --chart-4: #8b5cf6;
+  --chart-5: #f97316;
+  --radius: 0.5rem;
+  --sidebar: #f6f6f6;
+  --sidebar-foreground: #1e1e1e;
+  --sidebar-primary: #04b22f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaeaea;
+  --sidebar-accent-foreground: #1e1e1e;
+  --sidebar-border: #e4e4e4;
+  --sidebar-ring: #04b22f;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --brand: #0bbf3a;
+  --brand-soft: #0e2416;
+  --warn: #febf00;
+  --warn-soft: #2a220a;
+  --warn-text: #fcd34d;
+  --faint: #6b6b6b;
+  --field: #232323;
+  --title: #f2f2f2;
+  --subtitle: #9a9a9a;
+  --shell: #0f0f0f;
+  --surface-shadow: 0 0 0 1px #262626;
+  --surface-shadow-hover: 0 0 0 1px #333333, 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --background: #161616;
+  --foreground: #e8e8e8;
+  --card: #1c1c1c;
+  --card-foreground: #e8e8e8;
+  --popover: #1f1f1f;
+  --popover-foreground: #e8e8e8;
+  --primary: #0bbf3a;
+  --primary-foreground: #ffffff;
+  --secondary: #febf00;
+  --secondary-foreground: #ffffff;
+  --muted: #242424;
+  --muted-foreground: #9a9a9a;
+  --accent: #0e2416;
+  --accent-foreground: #6ee7a0;
+  --destructive: #f05252;
+  --border: #2c2c2c;
+  --input: #2c2c2c;
+  --ring: #0bbf3a;
+  --chart-1: #0bbf3a;
+  --chart-2: #febf00;
+  --chart-3: #60a5fa;
+  --chart-4: #a78bfa;
+  --chart-5: #fb923c;
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: #e8e8e8;
+  --sidebar-primary: #0bbf3a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1f1f1f;
+  --sidebar-accent-foreground: #e8e8e8;
+  --sidebar-border: #262626;
+  --sidebar-ring: #0bbf3a;
+}
+
+/* Smooth cross-fade when the theme changes (View Transitions API). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+  animation-timing-function: ease-out;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+    /* Always reserve the scrollbar's space so the layout never shifts when it appears/disappears. */
+    scrollbar-gutter: stable;
+  }
+  /*
+   * Radix (Select, DropdownMenu, Dialog…) locks scroll by hiding the body scrollbar and adding
+   * margin-right equal to its width. With a stable gutter that compensation would shift the page
+   * the other way, so cancel it. More specific than react-remove-scroll-bar's `body[data-scroll-locked]`.
+   */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    --removed-body-scroll-bar-size: 0px;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--brand) 25%, transparent);
+  }
+}
+
+@layer utilities {
+  /* Staggered entrance: set style={{"--i": index}} on each child. */
+  .stagger {
+    animation: var(--animate-fade-up);
+    animation-delay: calc(var(--i, 0) * 45ms);
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(90deg, var(--muted) 25%, color-mix(in oklch, var(--muted), var(--foreground) 7%) 50%, var(--muted) 75%);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
