@@ -226,7 +226,7 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
                 <Controller control={control} name="clientId" render={({ field }) => <ClientSelector id="clientId" className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} triggerRef={field.ref} invalid={!!errors.clientId} />} />
               </FormRow>
               <FormRow label="Project name" htmlFor="projectName" required error={errors.name?.message} labelClassName="text-sm">
-                <Input id="projectName" className="h-10" placeholder="e.g. Delivery Platform" autoFocus={!isEdit} maxLength={120} aria-invalid={!!errors.name} {...register("name")} />
+                <Input id="projectName" className="h-10" placeholder="e.g. Delivery Platform" autoFocus={!isEdit} required aria-required="true" maxLength={120} aria-invalid={!!errors.name} {...register("name")} />
               </FormRow>
               <div className="grid min-w-0 gap-4 @lg:col-span-2 @lg:grid-cols-3">
                 <FormRow label="Profile name" htmlFor="profileName" required error={errors.profileName?.message} labelClassName="text-sm">
