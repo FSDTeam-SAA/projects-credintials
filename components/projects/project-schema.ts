@@ -23,13 +23,25 @@ export const resourceSchema = z.object({
   credentials: z.array(credentialSchema),
 });
 
+export const projectLinkSchema = z.object({
+  label: z.string().trim().max(120),
+  url: z.string().trim().max(2048),
+}).superRefine((v, ctx) => {
+  if (!v.label && !v.url) return;
+  if (!v.label) ctx.addIssue({ code: "custom", path: ["label"], message: "Link label is required" });
+  let valid = false;
+  try { const url = new URL(v.url); valid = ["http:", "https:"].includes(url.protocol) && !!url.hostname; } catch {}
+  if (!valid) ctx.addIssue({ code: "custom", path: ["url"], message: "Enter an http:// or https:// URL" });
+});
+
 export const projectSchema = z.object({
-  clientName: z.string().trim().min(1, "Client name is required"),
+  clientId: z.string().min(1, "Select a client"),
+  name: z.string().trim().min(1, "Project name is required").max(120),
   profileName: z.string().min(1, "Select a profile name"),
   category: z.string().min(1, "Select a category"),
   serviceLine: z.string().min(1, "Select a service line"),
-  liveUrl: optionalUrl,
-  repoUrl: optionalUrl,
+  liveSites: z.array(projectLinkSchema).max(100),
+  repositories: z.array(projectLinkSchema).max(100),
   tags: z.array(z.string()),
   notes: z.string(),
   resources: z.array(resourceSchema),
@@ -39,12 +51,13 @@ export type ProjectFormValues = z.infer<typeof projectSchema>;
 export type ResourceFormValues = z.infer<typeof resourceSchema>;
 
 export const emptyProject: ProjectFormValues = {
-  clientName: "",
+  clientId: "",
+  name: "",
   profileName: "",
   category: "",
   serviceLine: "",
-  liveUrl: "",
-  repoUrl: "",
+  liveSites: [],
+  repositories: [],
   tags: [],
   notes: "",
   resources: [],
@@ -52,12 +65,13 @@ export const emptyProject: ProjectFormValues = {
 
 export function projectToForm(p: Project): ProjectFormValues {
   return {
-    clientName: p.clientName,
+    clientId: p.client?.id ?? "",
+    name: p.name,
     profileName: p.profileName?.id ?? "",
     category: p.category?.id ?? "",
     serviceLine: p.serviceLine,
-    liveUrl: p.liveUrl,
-    repoUrl: p.repoUrl,
+    liveSites: p.liveSites,
+    repositories: p.repositories,
     tags: p.tags,
     notes: p.notes,
     resources: p.resources.map((r) => ({

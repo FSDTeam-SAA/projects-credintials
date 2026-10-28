@@ -28,13 +28,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { FormRow } from "@/components/form-row";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CopyButton, copyText } from "@/components/copy-button";
 import { EnvBadge } from "@/components/badges";
 import { KIND_LABEL, QUICK_FIELDS, detectKind, generatePassword, toEnv } from "@/lib/credentials";
-import type { CredentialKind, Environment, ProjectMeta } from "@/lib/types";
+import type { Environment, ProjectMeta } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ExpiryPicker } from "./date-picker";
 import type { ProjectFormValues } from "./project-schema";
@@ -94,7 +95,7 @@ export function ResourceEditor({
       onOpenChange={setOpen}
       id={`resource-${index}`}
       className={cn(
-        "group/resource scroll-mt-24 rounded-xl border border-warn/70 bg-card transition-shadow duration-300 hover:shadow-surface-hover",
+        "@container/resource group/resource min-w-0 scroll-mt-24 rounded-xl border border-border bg-card transition-shadow duration-300 hover:shadow-surface-hover",
         isNew && "animate-pop",
         resourceErrors && "border-destructive/60",
       )}
@@ -108,7 +109,7 @@ export function ResourceEditor({
             {...register(`${base}.title`)}
             placeholder="Resource name, e.g. Hostinger VPS"
             className={cn(
-              "w-full rounded-md bg-transparent px-1.5 py-0.5 text-base font-semibold md:text-lg text-title outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground hover:bg-muted/60 focus:bg-muted/60",
+              "w-full rounded-md bg-transparent px-1.5 py-0.5 text-sm font-semibold md:text-base text-title outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground hover:bg-muted/60 focus:bg-muted/60",
               resourceErrors?.title && "placeholder:text-destructive/70",
             )}
           />
@@ -122,47 +123,8 @@ export function ResourceEditor({
           </div>
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <Controller
-            control={control}
-            name={`${base}.environment`}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger size="sm" className="h-8! w-[130px] border-border capitalize hover:border-warn/70">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {meta.environments.map((e) => (
-                    <SelectItem key={e} value={e} className="capitalize">
-                      <EnvBadge env={e} className="bg-transparent px-0" />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          <Controller
-            control={control}
-            name={`${base}.type`}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger size="sm" className="h-8! w-[150px] border-border hover:border-warn/70">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {meta.resourceTypes.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-
         {url && (
-          <Button asChild type="button" variant="outline" size="sm" className="hidden border-warn text-brand sm:inline-flex">
+          <Button asChild type="button" variant="outline" size="sm" className="hidden border-border text-subtitle sm:inline-flex">
             <a href={url} target="_blank" rel="noreferrer">
               <ExternalLinkIcon /> Open Link
             </a>
@@ -207,50 +169,27 @@ export function ResourceEditor({
       </div>
 
       <CollapsibleContent>
-        <div className="flex flex-col gap-5 border-t border-dashed border-warn/50 p-4 md:p-5">
-          {/* mobile-only selects */}
-          <div className="grid grid-cols-2 gap-3 md:hidden">
-            <Controller
-              control={control}
-              name={`${base}.environment`}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full capitalize">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {meta.environments.map((e) => (
-                      <SelectItem key={e} value={e} className="capitalize">
-                        {e}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <Controller
-              control={control}
-              name={`${base}.type`}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {meta.resourceTypes.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+        <div className="flex flex-col gap-5 border-t border-border p-4 md:p-5">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+            <FormRow label="Environment" htmlFor={`resource-${index}-environment`} labelClassName="text-sm">
+              <Controller control={control} name={`${base}.environment`} render={({ field }) => (
+                <Combobox id={`resource-${index}-environment`} ref={field.ref} onBlur={field.onBlur}
+                  value={field.value} onValueChange={field.onChange} placeholder="Select environment"
+                  searchPlaceholder="Search environments..." options={meta.environments.map(e => ({ value: e, label: e.charAt(0).toUpperCase() + e.slice(1) }))} />
+              )} />
+            </FormRow>
+            <FormRow label="Resource type" htmlFor={`resource-${index}-type`} labelClassName="text-sm">
+              <Controller control={control} name={`${base}.type`} render={({ field }) => (
+                <Combobox id={`resource-${index}-type`} ref={field.ref} onBlur={field.onBlur}
+                  value={field.value} onValueChange={field.onChange} placeholder="Select resource type"
+                  searchPlaceholder="Search resource types..." options={meta.resourceTypes.map(t => ({ value: t, label: t }))} />
+              )} />
+            </FormRow>
           </div>
 
           {resourceErrors?.title && <p className="-mt-2 text-sm text-destructive">{resourceErrors.title.message}</p>}
 
-          <div className="grid gap-4 md:grid-cols-[1fr_300px]">
+          <div className="grid min-w-0 gap-4 @3xl/resource:grid-cols-[minmax(0,1fr)_260px]">
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">Login / dashboard URL</span>
               <div className="relative">
@@ -358,7 +297,7 @@ function CredentialRow({
   const labelField = register(`${name}.label`);
 
   return (
-    <div className="group/row grid animate-fade-up grid-cols-[1fr_auto] items-start gap-2 rounded-lg p-1 transition-colors [grid-template-areas:'label_kind'_'value_actions'] hover:bg-muted/40 max-md:border max-md:border-dashed max-md:p-2 md:grid-cols-[minmax(140px,220px)_1fr_120px_auto] md:[grid-template-areas:'label_value_kind_actions']">
+    <div className="group/row grid animate-fade-up grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg border border-dashed p-2 transition-colors [grid-template-areas:'label_kind'_'value_actions'] hover:bg-muted/40 @3xl/resource:border-0 @3xl/resource:p-1 @3xl/resource:grid-cols-[minmax(140px,200px)_minmax(0,1fr)_120px_auto] @3xl/resource:[grid-template-areas:'label_value_kind_actions']">
       <div className="min-w-0 [grid-area:label]">
         <Input
           {...labelField}
@@ -411,23 +350,17 @@ function CredentialRow({
         )}
       </div>
 
-      <div className="w-[104px] [grid-area:kind] md:w-auto">
+      <div className="w-[104px] [grid-area:kind] @3xl/resource:w-auto">
         <Controller
           control={control}
           name={`${name}.kind`}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={(v) => field.onChange(v as CredentialKind)}>
-              <SelectTrigger className={cn("h-10! w-full border-border text-sm", field.value === "secret" && "border-warn/70 bg-warn-soft/60")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(KIND_LABEL) as CredentialKind[]).map((k) => (
-                  <SelectItem key={k} value={k}>
-                    {KIND_LABEL[k]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              value={field.value} onValueChange={field.onChange} ref={field.ref} onBlur={field.onBlur}
+              aria-label="Credential type" searchPlaceholder="Search field types..." size="sm"
+              options={Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }))}
+              className={cn("h-10 text-sm", field.value === "secret" && "border-warn/70 bg-warn-soft/60")}
+            />
           )}
         />
       </div>

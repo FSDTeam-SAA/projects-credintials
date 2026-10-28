@@ -59,7 +59,7 @@ export function ProjectDetails({ params }: { params: Promise<{ id: string }> }) 
         title="Project not found"
         description={error ? errorMessage(error) : "It may have been deleted."}
         action={
-          <Button asChild variant="outline-warn">
+          <Button asChild variant="outline">
             <Link href="/dashboard">Back to dashboard</Link>
           </Button>
         }
@@ -107,6 +107,7 @@ function Details({ project }: { project: Project }) {
     try {
       const { project: copy } = await api.post<{ project: Project }>(`/projects/${project.id}/duplicate`);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Project duplicated");
       router.push(`/projects/${copy.id}/edit`);
     } catch (err) {
@@ -119,6 +120,7 @@ function Details({ project }: { project: Project }) {
       await api.delete(`/projects/${project.id}`);
       queryClient.removeQueries({ queryKey: ["projects", "detail", project.id] });
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Project deleted");
       router.replace("/dashboard");
     } catch (err) {
@@ -128,12 +130,13 @@ function Details({ project }: { project: Project }) {
 
   function copyAll() {
     const text = [
+      `Project: ${project.name}`,
       `Client: ${project.clientName}`,
       `Profile: ${project.profileName?.name ?? ""}`,
       `Category: ${project.category?.name ?? ""}`,
       `Service line: ${project.serviceLine}`,
-      project.liveUrl && `Live: ${project.liveUrl}`,
-      project.repoUrl && `Repo: ${project.repoUrl}`,
+      ...project.liveSites.map(l => `Live site - ${l.label}: ${l.url}`),
+      ...project.repositories.map(l => `Repository - ${l.label}: ${l.url}`),
       "",
       ...project.resources.map((r) => resourceToText(r) + "\n"),
     ]
@@ -146,8 +149,8 @@ function Details({ project }: { project: Project }) {
     <div className="flex flex-col gap-8">
       <PageHeader
         back="/dashboard"
-        title="Project Details"
-        description="Find and access client project information quickly."
+        title={project.name}
+        description={project.clientName}
         actions={
           <>
             {can.editProjects && (
@@ -177,7 +180,7 @@ function Details({ project }: { project: Project }) {
                     <DropdownMenuSeparator />
                     <ConfirmDialog
                       title="Delete this project?"
-                      description={`"${project.clientName}" and all ${project.resources.length} stored resources will be permanently deleted.`}
+                      description={`"${project.name}" for ${project.clientName} and all ${project.resources.length} stored resources will be permanently deleted.`}
                       onConfirm={remove}
                       trigger={
                         <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
@@ -195,7 +198,7 @@ function Details({ project }: { project: Project }) {
 
       {/* Project information */}
       <section className="flex animate-fade-up flex-col gap-5 [animation-delay:60ms]">
-        <h2 className="text-2xl font-medium text-title md:text-[28px]">Project Information</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold text-title">Project Information</h2>{project.client && <Button asChild variant="outline" size="sm"><Link href={`/clients/${project.client.id}`}>View client&apos;s projects</Link></Button>}</div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <InfoField label="Client Name" value={project.clientName} />
           <InfoField label="Profile Name" value={project.profileName?.name ?? "—"} />
@@ -203,17 +206,11 @@ function Details({ project }: { project: Project }) {
           <InfoField label="Service Line" value={project.serviceLine} badge={<ServiceLineBadge value={project.serviceLine} className="bg-background/70" />} />
         </div>
 
-        {(project.liveUrl || project.repoUrl || project.tags.length > 0) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {project.liveUrl && <LinkChip href={project.liveUrl} icon={<GlobeIcon />} label="Live site" />}
-            {project.repoUrl && <LinkChip href={project.repoUrl} icon={<GitBranchIcon />} label="Repository" />}
-            {project.tags.map((t) => (
-              <Link key={t} href={`/dashboard?search=${encodeURIComponent(t)}`}>
-                <Pill className="transition-colors hover:bg-brand/10 hover:text-brand">#{t}</Pill>
-              </Link>
-            ))}
-          </div>
-        )}
+        {(project.liveSites.length > 0 || project.repositories.length > 0) && <div className="grid gap-4 lg:grid-cols-2">
+          <ProjectLinkList title="Live sites" links={project.liveSites} icon={<GlobeIcon />} />
+          <ProjectLinkList title="Repositories" links={project.repositories} icon={<GitBranchIcon />} />
+        </div>}
+        {project.tags.length > 0 && <div className="flex flex-wrap gap-2">{project.tags.map(t => <Link key={t} href={`/dashboard?search=${encodeURIComponent(t)}`}><Pill>#{t}</Pill></Link>)}</div>}
 
         {project.notes && (
           <div className="rounded-xl border border-dashed bg-muted/30 p-4 text-sm whitespace-pre-wrap">
@@ -243,7 +240,7 @@ function Details({ project }: { project: Project }) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Find a field, e.g. password"
-                  className="h-9 w-full border-warn/60 sm:w-[220px] bg-background pl-9 text-sm hover:bg-background md:w-[260px]"
+                  className="h-9 w-full border-border sm:w-[220px] bg-background pl-9 text-sm hover:bg-background md:w-[260px]"
                 />
               </div>
               <Button
@@ -301,8 +298,8 @@ function Details({ project }: { project: Project }) {
 function InfoField({ label, value, badge }: { label: string; value: string; badge?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-lg font-medium text-title">{label}</span>
-      <div className="group flex h-12 items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 text-sm text-foreground/75">
+      <span className="text-sm font-medium text-subtitle">{label}</span>
+      <div className="group flex h-10 items-center justify-between gap-2 rounded-xl bg-field/50 px-3 text-sm text-foreground">
         {badge ?? <span className="truncate">{value}</span>}
         <CopyButton value={value} size="icon-xs" className="opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
@@ -310,17 +307,10 @@ function InfoField({ label, value, badge }: { label: string; value: string; badg
   );
 }
 
-function LinkChip({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-full border border-warn px-3 py-1.5 text-sm text-brand transition-all hover:-translate-y-0.5 hover:bg-warn-soft [&_svg]:size-4"
-    >
-      {icon} {label} <ExternalLinkIcon className="size-3.5! opacity-60" />
-    </a>
-  );
+function ProjectLinkList({ title, links, icon }: { title: string; links: { label: string; url: string }[]; icon: React.ReactNode }) {
+  return <section className="rounded-xl border bg-card p-4"><h3 className="mb-3 flex items-center gap-2 font-semibold [&_svg]:size-4">{icon}{title}<span className="text-sm font-normal text-subtitle">({links.length})</span></h3>
+    {links.length === 0 ? <p className="text-sm text-subtitle">No links added.</p> : <ul className="flex flex-col gap-2">{links.map((link, i) => <li key={i} className="flex items-center gap-2 rounded-lg bg-field/50 p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{link.label}</p><p className="truncate text-xs text-subtitle">{link.url}</p></div><CopyButton value={link.url} label={`Copy ${link.label} URL`} size="icon-sm" /><Button asChild size="sm" variant="outline"><a href={link.url} target="_blank" rel="noreferrer"><ExternalLinkIcon />Open<span className="sr-only"> {link.label}</span></a></Button></li>)}</ul>}
+  </section>;
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -361,7 +351,7 @@ function ResourceCard({
       onOpenChange={onOpenChange}
       style={{ "--i": index } as React.CSSProperties}
       className={cn(
-        "stagger scroll-mt-28 rounded-lg border border-warn bg-card transition-all duration-500",
+        "stagger scroll-mt-28 rounded-xl border border-border bg-card transition-colors duration-200",
         open ? "shadow-sm" : "hover:shadow-sm",
         highlight && "ring-4 ring-warn/40",
       )}
@@ -390,7 +380,7 @@ function ResourceCard({
           className={cn("size-4 shrink-0 cursor-pointer text-title transition-transform duration-300", !open && "-rotate-90")}
         />
         {r.url && (
-          <Button asChild variant="outline" size="sm" className="border-warn text-brand hover:bg-warn-soft hover:text-brand">
+          <Button asChild variant="outline" size="sm" className="border-border text-foreground hover:bg-muted">
             <a href={r.url} target="_blank" rel="noreferrer">
               <ExternalLinkIcon /> <span className="hidden sm:inline">Open Link</span>
             </a>

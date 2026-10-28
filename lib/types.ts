@@ -18,6 +18,8 @@ export type PageMeta = { total: number; page: number; limit: number; totalPages:
 export type Paged<T> = { items: T[]; meta: PageMeta };
 
 export type Lookup = { id: string; name: string; projectCount?: number; createdAt?: string };
+export type Client = { id: string; name: string; projectCount: number; createdAt?: string };
+export type ProjectLink = { label: string; url: string };
 
 export type CredentialKind = "text" | "secret" | "url" | "email" | "multiline";
 export type Environment = "production" | "staging" | "development";
@@ -41,6 +43,10 @@ type UserRef = { id: string; name: string; role: Role } | null;
 
 export type Project = {
   id: string;
+  name: string;
+  client: { id: string; name: string } | null;
+  liveSites: ProjectLink[];
+  repositories: ProjectLink[];
   clientName: string;
   profileName: Ref;
   category: Ref;
@@ -58,6 +64,10 @@ export type Project = {
 
 export type ProjectRow = {
   id: string;
+  name: string;
+  client: { id: string; name: string } | null;
+  liveSites: ProjectLink[];
+  repositories: ProjectLink[];
   clientName: string;
   profileName: Ref;
   category: Ref;
@@ -92,6 +102,7 @@ export type ProjectMeta = {
 
 export type ExpiringItem = {
   projectId: string;
+  projectName: string;
   clientName: string;
   resourceId: string;
   resourceTitle: string;

@@ -174,7 +174,7 @@ function UserManagement() {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Search name, email, ID"
-                className="h-10 w-full border-warn/60 sm:w-[240px] bg-background pl-9 hover:bg-background"
+                className="h-10 w-full border-border sm:w-[240px] bg-background pl-9 hover:bg-background"
               />
             </div>
             <Button size="pill" className="group" onClick={() => setAddOpen(true)}>
@@ -217,14 +217,14 @@ function UserManagement() {
           </ul>
 
           <div className="hidden md:block">
-          <Table className="text-base">
+          <Table className="text-sm">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="h-12 pl-4 font-bold text-title">User Name</TableHead>
-                <TableHead className="font-bold text-title">E_ID</TableHead>
-                <TableHead className="text-center font-bold text-title">Role</TableHead>
-                <TableHead className="hidden font-bold text-title md:table-cell">Last login</TableHead>
-                <TableHead className="pr-6 text-right font-bold text-title">Action</TableHead>
+                <TableHead className="h-12 pl-4 font-medium text-subtitle">User Name</TableHead>
+                <TableHead className="font-medium text-subtitle">E_ID</TableHead>
+                <TableHead className="text-center font-medium text-subtitle">Role</TableHead>
+                <TableHead className="hidden font-medium text-subtitle md:table-cell">Last login</TableHead>
+                <TableHead className="pr-6 text-right font-medium text-subtitle">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

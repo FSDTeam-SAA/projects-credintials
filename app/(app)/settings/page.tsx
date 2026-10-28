@@ -31,9 +31,9 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Setting" description="Manage your Account" />
-      <div className="grid animate-fade-up gap-6 rounded-sm border border-warn p-3 [animation-delay:60ms] md:grid-cols-[280px_1fr] lg:grid-cols-[400px_1fr] lg:p-4">
-        <nav className="flex gap-1 overflow-x-auto rounded-lg bg-brand-soft p-1.5 scrollbar-thin md:min-h-[360px] md:flex-col md:p-2">
+      <PageHeader title="Settings" description="Manage your account, security, and appearance." />
+      <div className="grid animate-fade-up gap-5 rounded-xl border bg-card p-4 [animation-delay:60ms] md:grid-cols-[200px_minmax(0,1fr)] lg:p-5">
+        <nav className="flex gap-1 overflow-x-auto rounded-lg bg-muted/40 p-1.5 scrollbar-thin md:min-h-[360px] md:flex-col md:p-2">
           <p className="hidden border-b border-brand/10 px-2 py-2 text-base font-medium text-title md:block">Account</p>
           <TabButton active={tab === "profile"} onClick={() => setTab("profile")} icon={<UserRoundIcon />}>
             Profile
@@ -60,7 +60,7 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
       onClick={onClick}
       className={cn(
         "flex shrink-0 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm whitespace-nowrap transition-all duration-200 md:py-1.5 [&_svg]:size-4",
-        active ? "bg-brand text-white shadow-sm shadow-brand/30" : "text-title hover:translate-x-0.5 hover:bg-brand/10",
+        active ? "bg-brand-soft text-accent-foreground" : "text-subtitle hover:bg-muted hover:text-title",
       )}
     >
       {icon}
@@ -117,7 +117,7 @@ function AppearancePanel() {
               style={{ "--i": i } as React.CSSProperties}
               className={cn(
                 "stagger flex flex-col gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200 hover:-translate-y-0.5",
-                active ? "border-brand shadow-md shadow-brand/15" : "border-border hover:border-warn/70",
+                active ? "border-brand shadow-md shadow-brand/15" : "border-border hover:border-brand/40",
               )}
             >
               <ThemePreview mode={value} />

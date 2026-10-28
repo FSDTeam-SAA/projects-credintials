@@ -48,25 +48,26 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       {
         href: "/dashboard",
-        label: "Dashboard Overview",
+        label: "Dashboard",
         icon: LayoutGridIcon,
         roles: ["admin", "operation", "sales"],
         match: (p) => p.startsWith("/dashboard") || (p.startsWith("/projects") && p !== "/projects/new"),
       },
+      { href: "/clients", label: "Clients", icon: UsersRoundIcon, roles: ["admin", "operation", "sales"] },
       { href: "/projects/new", label: "Add Project", icon: FolderPlusIcon, roles: ["operation", "admin"] },
     ],
   },
   {
     label: "Manage",
     items: [
-      { href: "/users", label: "User", icon: UsersRoundIcon, roles: ["admin"], badge: "pending" },
-      { href: "/categories", label: "Add Category", icon: ShapesIcon, roles: ["admin"] },
-      { href: "/profile-names", label: "Add profile name", icon: UserRoundPlusIcon, roles: ["admin"] },
+      { href: "/users", label: "Users", icon: UsersRoundIcon, roles: ["admin"], badge: "pending" },
+      { href: "/categories", label: "Categories", icon: ShapesIcon, roles: ["admin"] },
+      { href: "/profile-names", label: "Profiles", icon: UserRoundPlusIcon, roles: ["admin"] },
     ],
   },
   {
     label: "Account",
-    items: [{ href: "/settings", label: "Setting", icon: SettingsIcon, roles: ["admin", "operation", "sales"] }],
+    items: [{ href: "/settings", label: "Settings", icon: SettingsIcon, roles: ["admin", "operation", "sales"] }],
   },
 ];
 
@@ -122,7 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar user={user} pathname={pathname} />
           <main className="flex-1 bg-background lg:rounded-tl-2xl">
-            <div className="mx-auto w-full max-w-[1580px] p-4 md:p-6 lg:p-8">{children}</div>
+            <div className="mx-auto w-full max-w-[1580px] px-4 py-4 md:px-6 lg:px-7 lg:py-5">{children}</div>
           </main>
         </div>
       </div>
@@ -180,8 +181,8 @@ function Sidebar({
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-surface">
       {/* Decorative brand glows */}
-      <div aria-hidden className="pointer-events-none absolute -top-24 -left-20 size-56 rounded-full bg-brand/15 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -right-24 bottom-24 size-56 rounded-full bg-warn/15 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -top-24 -left-20 size-56 rounded-full bg-brand/5 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -right-24 bottom-24 size-56 rounded-full bg-brand/5 blur-3xl" />
 
       {/* Brand + collapse */}
       <div className={cn("relative flex items-center gap-2 px-4 pt-5 pb-4", collapsed ? "flex-col" : "justify-between")}>
@@ -237,7 +238,7 @@ function Sidebar({
                     aria-current={active ? "page" : undefined}
                     style={{ "--i": gi * 3 + i } as React.CSSProperties}
                     className={cn(
-                      "stagger group relative z-10 flex items-center gap-3 rounded-xl p-2 text-[15px] font-medium transition-colors duration-200",
+                      "stagger group relative z-10 flex items-center gap-3 rounded-xl p-2 text-sm font-medium transition-colors duration-200",
                       collapsed && "justify-center",
                       active ? "text-white" : "text-title hover:bg-muted/70",
                     )}
@@ -341,7 +342,7 @@ function Sidebar({
 function TopBar({ user, pathname }: { user: User; pathname: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 bg-shell/90 px-4 py-4 backdrop-blur md:px-6 lg:justify-end">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur md:px-6 lg:justify-end">
       <div className="flex items-center gap-3 lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -364,8 +365,8 @@ function TopBar({ user, pathname }: { user: User; pathname: string }) {
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
             <AvatarFallback className="bg-brand-soft text-xs font-semibold text-brand">{initials(user.name)}</AvatarFallback>
           </Avatar>
-          <div className="flex flex-col gap-1 leading-none">
-            <span className="text-base font-medium text-title">{user.name}</span>
+          <div className="hidden flex-col gap-1 leading-none sm:flex">
+            <span className="text-sm font-medium text-title">{user.name}</span>
             <span className="text-xs text-title/80">@{roleLabel[user.role]}</span>
           </div>
         </Link>

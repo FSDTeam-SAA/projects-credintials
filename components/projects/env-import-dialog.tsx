@@ -1,206 +1,131 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { FileUpIcon, LockIcon, SparklesIcon } from "lucide-react";
+import { AlertCircleIcon, FileUpIcon, LockIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
-import { KIND_LABEL, parseEnv, type ParsedEnvEntry } from "@/lib/credentials";
-import type { CredentialKind, Environment } from "@/lib/types";
+import { envFileEnvironment, isSensitiveCredential, KIND_LABEL, parseEnvDetailed, planEnvImport, type EnvMergeMode, type ParsedEnvEntry } from "@/lib/credentials";
+import type { Credential, CredentialKind, Environment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type EnvImportTarget = { kind: "new"; title: string; environment: Environment } | { kind: "existing"; index: number };
-
+export type EnvImportTarget = { kind: "new"; title: string; environment: Environment } | { kind: "existing"; index: number; mode: EnvMergeMode };
 const NEW = "__new__";
-
-/**
- * Paste or upload a .env file, preview how each line will be stored (secret detection),
- * then add it as a new resource or merge into an existing one.
- */
-export function EnvImportDialog({
-  open,
-  onOpenChange,
-  resources,
-  defaultTarget,
-  onImport,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  resources: { title: string }[];
-  defaultTarget?: number;
+const MAX_FILE_SIZE = 1024 * 1024;
+type ImportResource = { title: string; environment: Environment; credentials: Credential[] };
+type Props = {
+  open: boolean; onOpenChange: (open: boolean) => void; resources: ImportResource[]; defaultTarget?: number;
   onImport: (entries: ParsedEnvEntry[], target: EnvImportTarget) => void;
-}) {
+};
+const ACTION_LABEL = { add: "New", fill: "Fill empty", replace: "Replace", keep: "Keep current", unchanged: "Unchanged" };
+
+export function EnvImportDialog(props: Props) {
+  return <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    {props.open && <ImportContent key={props.defaultTarget ?? NEW} {...props} />}
+  </Dialog>;
+}
+
+function ImportContent({ resources, defaultTarget, onImport, onOpenChange }: Props) {
   const [text, setText] = useState("");
-  const [target, setTarget] = useState<string>(NEW);
+  const [target, setTarget] = useState(defaultTarget === undefined ? NEW : String(defaultTarget));
   const [title, setTitle] = useState("Environment variables");
-  const [environment, setEnvironment] = useState<Environment>("production");
-  const [overrides, setOverrides] = useState<Record<number, CredentialKind>>({});
+  const [environment, setEnvironment] = useState<Environment>(resources[defaultTarget ?? -1]?.environment ?? "production");
+  const [mode, setMode] = useState<EnvMergeMode>("keep");
+  const [overrides, setOverrides] = useState<Record<string, CredentialKind>>({});
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState("");
+  const [fileError, setFileError] = useState("");
+  const [filename, setFilename] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const readVersion = useRef(0);
+  const report = useMemo(() => parseEnvDetailed(text), [text]);
+  const entries = useMemo(() => report.entries.map(e => ({ ...e, kind: overrides[e.label] ?? e.kind })), [report, overrides]);
+  const selected = entries.filter(e => !excluded.has(e.label));
+  const existing = target === NEW ? undefined : resources[Number(target)];
+  const plan = planEnvImport(entries, existing?.credentials ?? [], mode);
+  const selectedPlan = plan.filter(e => !excluded.has(e.label));
+  const changes = selectedPlan.filter(e => e.action === "add" || e.action === "fill" || e.action === "replace");
+  const addCount = changes.filter(e => e.action === "add").length;
+  const updateCount = changes.length - addCount;
+  const visible = plan.filter(e => e.label.toLowerCase().includes(query.toLowerCase()));
+  const secrets = entries.filter(e => e.kind === "secret" || isSensitiveCredential(e.label, e.value)).length;
+  const capacityError = target === NEW ? resources.length >= 100 : !!existing && existing.credentials.length + addCount > 100;
+  const tooMany = selected.length > 100 || capacityError;
+  const oversized = changes.some(entry => entry.label.length > 100 || entry.value.length > 20_000);
+  const canImport = changes.length > 0 && !tooMany && !oversized && (target === NEW || !!existing) && (target !== NEW || !!title.trim());
 
-  const entries = useMemo(() => parseEnv(text).map((e, i) => ({ ...e, kind: overrides[i] ?? e.kind })), [text, overrides]);
-  const secrets = entries.filter((e) => e.kind === "secret").length;
-
-  function reset() {
-    setText("");
-    setOverrides({});
-    setTarget(NEW);
-    setTitle("Environment variables");
+  function setSource(source: string) {
+    setText(source); setOverrides({}); setExcluded(new Set()); setFileError("");
   }
-
-  function handleOpenChange(o: boolean) {
-    if (o) setTarget(defaultTarget !== undefined ? String(defaultTarget) : NEW);
-    else reset();
-    onOpenChange(o);
-  }
-
   async function onFile(file?: File) {
     if (!file) return;
-    setText(await file.text());
-    setOverrides({});
-    if (target === NEW && title === "Environment variables") setTitle(file.name);
+    const version = ++readVersion.current;
+    if (file.size > MAX_FILE_SIZE) { setFileError("Choose a text file smaller than 1 MB."); return; }
+    try {
+      const source = await file.text();
+      if (version !== readVersion.current) return;
+      if (source.includes("\0")) { setFileError("This file does not look like a text environment file."); return; }
+      setSource(source); setFilename(file.name);
+      const suggested = envFileEnvironment(file.name);
+      if (suggested) setEnvironment(suggested);
+      if (title === "Environment variables") setTitle(suggested ? `${suggested.charAt(0).toUpperCase() + suggested.slice(1)} environment` : file.name.slice(0, 120));
+    } catch { setFileError("Could not read this file. Try pasting its contents instead."); }
   }
-
   function submit() {
-    onImport(
-      entries,
-      target === NEW ? { kind: "new", title: title.trim() || "Environment variables", environment } : { kind: "existing", index: Number(target) },
-    );
-    handleOpenChange(false);
+    if (!canImport) return;
+    // Pass only changes, so preserved and unchanged values are never rewritten.
+    onImport(changes.map(({ label, value, kind }) => ({ label, value, kind })), target === NEW
+      ? { kind: "new", title: title.trim(), environment }
+      : { kind: "existing", index: Number(target), mode });
+    onOpenChange(false);
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="gap-5 sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <SparklesIcon className="size-5 text-warn" /> Import from .env
-          </DialogTitle>
-          <DialogDescription>Paste the file contents or upload it. Passwords, keys and tokens are detected automatically.</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-5 md:grid-cols-2">
-          <div
-            className="flex flex-col gap-2"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              onFile(e.dataTransfer.files[0]);
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <Label>File contents</Label>
-              <Button type="button" variant="ghost" size="xs" onClick={() => fileRef.current?.click()}>
-                <FileUpIcon /> Upload file
-              </Button>
-              <input ref={fileRef} type="file" accept=".env,.txt,text/plain" hidden onChange={(e) => onFile(e.target.files?.[0])} />
-            </div>
-            <Textarea
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setOverrides({});
-              }}
-              placeholder={"DATABASE_URL=mongodb+srv://...\nJWT_SECRET=...\nSTRIPE_SECRET_KEY=sk_live_...\n\n(or drop a .env file here)"}
-              className="h-36 resize-none font-mono text-xs md:h-64"
-              spellCheck={false}
-            />
-          </div>
-
-          <div className="flex min-h-0 flex-col gap-2">
-            <Label>
-              Preview{" "}
-              {entries.length > 0 && (
-                <span className="font-normal text-subtitle">
-                  · {entries.length} values, {secrets} secret{secrets === 1 ? "" : "s"}
-                </span>
-              )}
-            </Label>
-            <div className="h-40 overflow-y-auto rounded-lg border scrollbar-thin md:h-64">
-              {entries.length === 0 ? (
-                <p className="p-4 text-sm text-subtitle">Parsed values will appear here.</p>
-              ) : (
-                <ul className="divide-y">
-                  {entries.map((e, i) => (
-                    <li key={i} style={{ "--i": Math.min(i, 12) } as React.CSSProperties} className="stagger flex items-center gap-2 px-3 py-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-xs font-medium text-title">{e.label}</p>
-                        <p className={cn("truncate font-mono text-xs text-subtitle", e.kind === "secret" && "blur-[3px]")}>{e.value || "(empty)"}</p>
-                      </div>
-                      <Select value={e.kind} onValueChange={(v) => setOverrides((o) => ({ ...o, [i]: v as CredentialKind }))}>
-                        <SelectTrigger size="sm" className={cn("h-7! w-[110px] text-xs", e.kind === "secret" && "border-warn bg-warn-soft")}>
-                          {e.kind === "secret" && <LockIcon className="size-3!" />}
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(KIND_LABEL) as CredentialKind[]).map((k) => (
-                            <SelectItem key={k} value={k}>
-                              {KIND_LABEL[k]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
+  return <DialogContent className="gap-4 sm:max-w-4xl" onKeyDown={e => e.stopPropagation()}>
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2"><FileUpIcon className="size-4 text-brand" />Import environment variables</DialogTitle>
+      <DialogDescription>Paste or drop a .env file. Review detected fields and changes before adding them to this project.</DialogDescription>
+    </DialogHeader>
+    <div className="grid gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex min-w-0 flex-col gap-1.5"><Label htmlFor="env-target" className="text-xs text-subtitle">Add to</Label><Combobox id="env-target" value={target} onValueChange={setTarget} searchPlaceholder="Search resources..." options={[{ value: NEW, label: "A new resource" }, ...resources.map((r, i) => ({ value: String(i), label: `${r.title || `Resource ${i + 1}`} (${r.environment})` }))]} /></div>
+      {target === NEW ? <>
+        <div className="flex min-w-0 flex-col gap-1.5"><Label htmlFor="env-title" className="text-xs text-subtitle">Resource name</Label><Input id="env-title" value={title} maxLength={120} onChange={e => setTitle(e.target.value)} /></div>
+        <div className="flex min-w-0 flex-col gap-1.5"><Label htmlFor="env-environment" className="text-xs text-subtitle">Environment</Label><Combobox id="env-environment" value={environment} onValueChange={v => setEnvironment(v as Environment)} searchPlaceholder="Search environments..." options={["production", "staging", "development"].map(e => ({ value: e, label: e.charAt(0).toUpperCase() + e.slice(1) }))} /></div>
+      </> : <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 lg:col-span-2"><Label htmlFor="env-conflicts" className="text-xs text-subtitle">When a key already has a value</Label><Combobox id="env-conflicts" value={mode} onValueChange={v => setMode(v as EnvMergeMode)} searchPlaceholder="Search import behavior..." options={[{ value: "keep", label: "Keep existing values; fill empty fields" }, { value: "replace", label: "Replace existing values with imported values" }]} /></div>}
+    </div>
+    <div className="grid min-w-0 gap-4 md:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-2" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); void onFile(e.dataTransfer.files[0]); }}>
+        <div className="flex items-center justify-between gap-2"><Label htmlFor="env-source">{filename || "File contents"}</Label><Button type="button" variant="outline" size="xs" onClick={() => fileRef.current?.click()}><FileUpIcon />Choose file</Button></div>
+        <input ref={fileRef} type="file" aria-label="Choose an environment file" hidden onChange={e => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
+        <Textarea id="env-source" value={text} maxLength={MAX_FILE_SIZE} onChange={e => { readVersion.current++; setSource(e.target.value); setFilename(""); }} placeholder={"DATABASE_URL=mongodb+srv://...\nJWT_SECRET=...\nPORT=5000\n\nDrop .env, .env.production, or .env.local here"} className="h-60 min-h-60 resize-none font-mono text-xs [field-sizing:fixed] md:h-72" spellCheck={false} autoComplete="off" />
+        {fileError && <p role="alert" className="text-xs text-destructive">{fileError}</p>}
+        <p className="text-xs text-subtitle">{entries.length} unique keys detected{secrets ? `, ${secrets} sensitive` : ""}. Values stay in this draft until the project is saved.</p>
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex items-center justify-between gap-2"><Label>Preview</Label>{entries.length > 0 && <Button type="button" size="xs" variant="ghost" onClick={() => setExcluded(selected.length === entries.length ? new Set(entries.map(e => e.label)) : new Set())}>{selected.length === entries.length ? "Deselect all" : "Select all"}</Button>}</div>
+        <div className="overflow-hidden rounded-lg border">
+          <div className="relative border-b"><SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-subtitle" /><Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Filter keys..." aria-label="Filter environment keys" className="h-9 rounded-none border-0 bg-transparent pl-9 text-xs" /></div>
+          <ul className="h-52 divide-y overflow-y-auto scrollbar-thin md:h-[250px]">
+            {visible.length === 0 && <li className="px-4 py-8 text-center text-sm text-subtitle">{entries.length ? "No matching keys." : "Parsed fields will appear here."}</li>}
+            {visible.map(entry => <li key={entry.label} className={cn("flex items-center gap-2 px-3 py-2", excluded.has(entry.label) && "opacity-50")}>
+              <Checkbox aria-label={`Import ${entry.label}`} checked={!excluded.has(entry.label)} onCheckedChange={checked => setExcluded(old => { const next = new Set(old); if (checked === true) next.delete(entry.label); else next.add(entry.label); return next; })} />
+              <div className="min-w-0 flex-1"><p className="truncate font-mono text-xs font-medium">{entry.label}</p><p className="truncate font-mono text-[11px] text-subtitle">{entry.kind === "secret" || isSensitiveCredential(entry.label, entry.value) ? "Sensitive value hidden" : entry.value || "(empty)"}</p><span className={cn("text-[10px] font-medium", entry.action === "replace" ? "text-warn-text" : entry.action === "add" || entry.action === "fill" ? "text-brand" : "text-subtitle")}>{ACTION_LABEL[entry.action]}</span></div>
+              <Combobox value={entry.kind} onValueChange={v => setOverrides(old => ({ ...old, [entry.label]: v as CredentialKind }))} aria-label={`Type for ${entry.label}`} searchPlaceholder="Search field types..." size="sm" options={Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }))} className="h-8 w-24 shrink-0 text-xs" icon={entry.kind === "secret" ? <LockIcon className="size-3" /> : undefined} />
+            </li>)}
+          </ul>
         </div>
-
-        <div className="grid gap-3 rounded-lg bg-muted/60 p-3 md:grid-cols-[1fr_1fr_160px]">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-subtitle">Add to</Label>
-            <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger className="h-10! w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NEW}>A new resource</SelectItem>
-                {resources.map((r, i) => (
-                  <SelectItem key={i} value={String(i)}>
-                    {r.title || `Resource ${i + 1}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {target === NEW && (
-            <>
-              <div className="flex animate-fade-in flex-col gap-1.5">
-                <Label className="text-xs text-subtitle">Resource name</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-10 bg-background" />
-              </div>
-              <div className="flex animate-fade-in flex-col gap-1.5">
-                <Label className="text-xs text-subtitle">Environment</Label>
-                <Select value={environment} onValueChange={(v) => setEnvironment(v as Environment)}>
-                  <SelectTrigger className="h-10! w-full capitalize">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(["production", "staging", "development"] as const).map((e) => (
-                      <SelectItem key={e} value={e} className="capitalize">
-                        {e}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline-warn" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={submit} disabled={!entries.length}>
-            Import {entries.length || ""} value{entries.length === 1 ? "" : "s"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+      </div>
+    </div>
+    {report.warnings.length > 0 && <details className="rounded-lg border border-warn/30 bg-warn-soft/40 px-3 py-2 text-xs"><summary className="cursor-pointer font-medium text-warn-text">{report.warnings.length} parsing notice{report.warnings.length === 1 ? "" : "s"} - review before importing</summary><ul className="mt-2 max-h-24 space-y-1 overflow-auto">{report.warnings.map((warning, i) => <li key={i}>Line {warning.line}: {warning.message}</li>)}</ul></details>}
+    {tooMany && <p role="alert" className="flex items-center gap-2 text-xs text-destructive"><AlertCircleIcon className="size-4" />A project supports up to 100 resources, with 100 fields per resource. Select fewer fields or a different resource.</p>}
+    {oversized && <p role="alert" className="text-xs text-destructive">Selected field names must be at most 100 characters and values at most 20,000 characters. Deselect or shorten the oversized entries.</p>}
+    <DialogFooter>
+      <p className="mr-auto self-center text-xs text-subtitle">{addCount} new, {updateCount} updated{selectedPlan.length > changes.length ? `, ${selectedPlan.length - changes.length} kept` : ""}</p>
+      <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+      <Button type="button" onClick={submit} disabled={!canImport}><FileUpIcon />Import {changes.length} field{changes.length === 1 ? "" : "s"}</Button>
+    </DialogFooter>
+  </DialogContent>;
 }

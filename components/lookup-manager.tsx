@@ -65,7 +65,7 @@ export function LookupManager({ config }: { config: Config }) {
 
       <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_1fr]">
         {/* List */}
-        <section className="animate-fade-up rounded-lg bg-card p-4 shadow-surface md:p-6">
+        <section className="animate-fade-up rounded-xl border bg-card p-4 shadow-surface md:p-6">
           <h2 className="text-base font-medium text-title">{config.listTitle}</h2>
           <p className="mt-1 text-xs text-subtitle">New entries appear immediately in Add Project, Edit Project, and the project filters.</p>
           <div className="relative mt-3">
@@ -74,7 +74,7 @@ export function LookupManager({ config }: { config: Config }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search by ${config.singular.toLowerCase()} ...`}
-              className="border-warn bg-background pl-11 hover:bg-background"
+              className="pl-11"
             />
           </div>
 
@@ -98,11 +98,11 @@ export function LookupManager({ config }: { config: Config }) {
         </section>
 
         {/* Add form */}
-        <section className="animate-fade-up rounded-lg bg-card p-4 shadow-surface [animation-delay:80ms] md:p-6 lg:sticky lg:top-24">
+        <section className="animate-fade-up rounded-xl border bg-card p-4 shadow-surface [animation-delay:80ms] md:p-6 lg:sticky lg:top-24">
           <div className="flex items-start gap-2">
-            <span className="grid size-7 place-items-center rounded-md bg-warn-soft text-brand [&_svg]:size-4">{config.icon}</span>
+            <span className="grid size-7 place-items-center rounded-md bg-brand-soft text-brand [&_svg]:size-4">{config.icon}</span>
             <div>
-              <h2 className="text-xl text-title">Add {config.singular.toLowerCase()}</h2>
+              <h2 className="text-base font-semibold text-title">Add {config.singular.toLowerCase()}</h2>
               <p className="text-sm text-subtitle">New entries appear immediately in Add Project, Edit Project, and the project filters.</p>
             </div>
           </div>
@@ -119,7 +119,7 @@ export function LookupManager({ config }: { config: Config }) {
               }}
               placeholder={config.placeholder}
               aria-invalid={!!error}
-              className="bg-brand-soft hover:bg-brand-soft/70"
+              className="bg-field/50"
             />
             {error && <p className="animate-fade-in text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={adding} className="group mt-4 h-11 w-full">

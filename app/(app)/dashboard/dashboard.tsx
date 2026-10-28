@@ -14,9 +14,11 @@ import {
   SearchIcon,
   XIcon,
 } from "lucide-react";
+import { ClientSelector } from "@/components/clients/client-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCan, useCurrentUser } from "@/components/app/current-user";
@@ -33,6 +35,8 @@ import { cn } from "@/lib/utils";
 const ALL = "all";
 const SORTS = [
   { value: "-updatedAt", label: "Recently updated" },
+  { value: "name", label: "Project name A-Z" },
+  { value: "-name", label: "Project name Z-A" },
   { value: "clientName", label: "Client name A–Z" },
   { value: "-clientName", label: "Client name Z–A" },
   { value: "-createdAt", label: "Newest first" },
@@ -48,6 +52,7 @@ export function Dashboard() {
 
   const filters = {
     search: params.get("search") ?? "",
+    clientId: params.get("clientId") ?? "",
     category: params.get("category") ?? "",
     profileName: params.get("profileName") ?? "",
     serviceLine: params.get("serviceLine") ?? "",
@@ -80,17 +85,13 @@ export function Dashboard() {
   const { data: profiles } = useProfileNames();
   const { data: meta } = useProjectMeta();
 
-  const hasFilters = !!(filters.search || filters.category || filters.profileName || filters.serviceLine || filters.expiring);
+  const hasFilters = !!(filters.clientId || filters.search || filters.category || filters.profileName || filters.serviceLine || filters.expiring);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       <PageHeader
-        title={
-          <>
-            {user.name} Welcome to your Dashboard<span className="inline-block origin-[70%_70%] animate-[wave_1.8s_ease-in-out_1]">👋</span>
-          </>
-        }
-        description="Find and access client project information quickly."
+        title="Dashboard"
+        description={`Welcome back, ${user.name}. Find projects, clients, and access details.`}
         actions={
           can.editProjects && (
             <Button asChild variant="default" size="pill" className="group">
@@ -105,9 +106,9 @@ export function Dashboard() {
 
       <ExpiringPanel onShowAll={() => setParams({ expiring: "true" })} />
 
-      <section className="flex flex-col gap-5">
+      <section className="@container/filters flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="pl-2 text-2xl font-medium text-title md:text-[32px]">Project Management</h2>
+          <h2 className="text-lg font-semibold text-title">Projects</h2>
           {filters.expiring && (
             <Pill tone="yellow" className="animate-pop">
               <AlarmClockIcon className="size-3.5" /> Expiring within 30 days
@@ -116,17 +117,32 @@ export function Dashboard() {
               </button>
             </Pill>
           )}
+          {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm" className="ml-auto animate-fade-in"
+            onClick={() => {
+              setSearchInput("");
+              router.replace(pathname, { scroll: false });
+            }}
+          >
+            <XIcon /> Clear filters
+          </Button>
+          )}
         </div>
 
         {/* Filters */}
-        <div className="grid animate-fade-up gap-3 rounded-xl border bg-card p-4 shadow-surface md:grid-cols-2 xl:grid-cols-[minmax(220px,1.3fr)_repeat(3,minmax(140px,1fr))_minmax(200px,auto)_auto]">
+        <div className="grid animate-fade-up grid-cols-2 items-end gap-2 rounded-xl border bg-card p-3 shadow-surface @2xl/filters:grid-cols-3 @5xl/filters:grid-cols-[minmax(220px,1.5fr)_repeat(4,minmax(0,1fr))_minmax(170px,1.1fr)]">
+          <div className="col-span-2 min-w-0 @2xl/filters:col-span-1">
+            <Label htmlFor="project-search" className="sr-only">Search projects</Label>
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-subtitle" />
             <Input
+              id="project-search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by client name ..."
-              className="border-warn/70 bg-background pl-10 hover:bg-background"
+              placeholder="Search projects, clients, or links..."
+              className="h-10 pl-10 pr-10"
             />
             {searchInput && (
               <button
@@ -138,6 +154,8 @@ export function Dashboard() {
               </button>
             )}
           </div>
+          </div>
+          <div className="flex min-w-0 flex-col gap-2"><Label htmlFor="client-filter" className="sr-only">Client</Label><ClientSelector id="client-filter" className="h-10" value={filters.clientId} onChange={v => setParams({ clientId: v })} allowCreate={false} allowClear /></div>
           <FilterSelect
             label="Category"
             value={filters.category}
@@ -156,31 +174,11 @@ export function Dashboard() {
             onChange={(v) => setParams({ serviceLine: v })}
             options={(meta?.serviceLines ?? []).map((s) => ({ value: s, label: s }))}
           />
-          <Select value={filters.sort} onValueChange={(v) => setParams({ sort: v })}>
-            <SelectTrigger className="w-full justify-start border-warn/70">
-              <ArrowUpDownIcon className="text-subtitle" />
-              <SelectValue className="flex-1 text-left" />
-            </SelectTrigger>
-            <SelectContent>
-              {SORTS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {hasFilters && (
-          <Button
-            variant="ghost"
-            className="h-11 animate-fade-in"
-            onClick={() => {
-              setSearchInput("");
-              router.replace(pathname, { scroll: false });
-            }}
-          >
-            <XIcon /> Clear
-          </Button>
-          )}
+          <div className="flex min-w-0 flex-col gap-2">
+            <Label className="sr-only">Sort by</Label>
+            <Combobox value={filters.sort} onValueChange={v => setParams({ sort: v })} options={SORTS} className="h-10" aria-label="Sort projects" searchPlaceholder="Search sorting options..." icon={<ArrowUpDownIcon className="size-4 text-subtitle" />} />
+          </div>
+
         </div>
 
         {/* Table */}
@@ -203,7 +201,8 @@ export function Dashboard() {
                     <Link href={`/projects/${p.id}`} className="block space-y-3 p-4 transition-colors active:bg-brand-soft/60">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-base font-semibold text-title">{p.clientName}</p>
+                          <p className="truncate text-base font-semibold text-title">{p.name}</p>
+                          <p className="truncate text-sm text-subtitle">{p.clientName}</p>
                           <p className="truncate text-sm text-subtitle">{p.profileName?.name ?? "—"}</p>
                         </div>
                         <ServiceLineBadge value={p.serviceLine} className="shrink-0" />
@@ -226,7 +225,7 @@ export function Dashboard() {
                         </Link>
                       </Button>
                       {can.editProjects && (
-                        <Button asChild variant="warn" size="pill" className="h-10 flex-1">
+                        <Button asChild variant="outline" size="pill" className="h-10 flex-1">
                           <Link href={`/projects/${p.id}/edit`}>
                             <PencilIcon /> Edit
                           </Link>
@@ -238,15 +237,15 @@ export function Dashboard() {
           </ul>
 
           <div className="hidden md:block">
-          <Table className="text-base">
+          <Table className="text-sm">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="h-[50px] pl-4 text-base font-bold text-title">Profile Name</TableHead>
-                <TableHead className="text-center text-base font-bold text-title">Client Name</TableHead>
-                <TableHead className="text-center text-base font-bold text-title">Category</TableHead>
-                <TableHead className="text-center text-base font-bold text-title">Service line</TableHead>
-                <TableHead className="hidden text-center text-base font-bold text-title xl:table-cell">Resources</TableHead>
-                <TableHead className="pr-4 text-right text-base font-bold text-title">View Link</TableHead>
+                <TableHead className="h-10 pl-4 text-xs font-medium text-subtitle">Profile Name</TableHead>
+                <TableHead className="text-center text-xs font-medium text-subtitle">Project / Client</TableHead>
+                <TableHead className="text-center text-xs font-medium text-subtitle">Category</TableHead>
+                <TableHead className="text-center text-xs font-medium text-subtitle">Service line</TableHead>
+                <TableHead className="hidden text-center text-xs font-medium text-subtitle xl:table-cell">Resources</TableHead>
+                <TableHead className="pr-4 text-right text-xs font-medium text-subtitle">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -259,7 +258,7 @@ export function Dashboard() {
                       className="stagger group cursor-pointer transition-colors hover:bg-brand-soft/50"
                       onClick={() => router.push(`/projects/${p.id}`)}
                     >
-                      <TableCell className="py-4 pl-4">
+                      <TableCell className="py-3 pl-4">
                         <div className="flex flex-col">
                           <span>{p.profileName?.name ?? "—"}</span>
                           <span className="text-xs text-subtitle">Updated {timeAgo(p.updatedAt)}</span>
@@ -267,7 +266,8 @@ export function Dashboard() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center gap-1">
-                          <span>{p.clientName}</span>
+                          <span className="font-semibold text-title">{p.name}</span>
+                          {p.client ? <Link href={`/clients/${p.client.id}`} onClick={e => e.stopPropagation()} className="text-sm text-subtitle hover:text-brand">{p.clientName}</Link> : <span className="text-sm text-subtitle">{p.clientName}</span>}
                           {p.nextExpiry && (expiryTone(p.nextExpiry) !== "ok") && (
                             <Pill tone={expiryTone(p.nextExpiry) === "danger" ? "red" : "yellow"} className="px-2 py-0.5 text-[11px]">
                               <AlarmClockIcon className="size-3" /> {expiryLabel(p.nextExpiry)}
@@ -284,13 +284,13 @@ export function Dashboard() {
                       </TableCell>
                       <TableCell className="pr-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <Button asChild variant="default" size="pill" className="h-10 text-lg">
+                          <Button asChild variant="outline" size="pill" className="h-8 px-3">
                             <Link href={`/projects/${p.id}`}>
                               <EyeIcon className="size-5!" /> View
                             </Link>
                           </Button>
                           {can.editProjects && (
-                            <Button asChild variant="warn" size="pill" className="h-10">
+                            <Button asChild variant="ghost" size="pill" className="h-8 px-3">
                               <Link href={`/projects/${p.id}/edit`}>
                                 <PencilIcon /> Edit
                               </Link>
@@ -349,19 +349,15 @@ function FilterSelect({
   options: { value: string; label: string }[];
 }) {
   return (
-    <Select value={value || ALL} onValueChange={onChange}>
-      <SelectTrigger className={cn("w-full border-warn/70", value && "border-brand bg-brand-soft/60")} aria-label={label}>
-        <SelectValue placeholder={label} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>All {label}</SelectItem>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex min-w-0 flex-col gap-2">
+      <Label className="sr-only">{label}</Label>
+      <Combobox
+        value={value || ALL} onValueChange={onChange} aria-label={label}
+        searchPlaceholder={`Search ${label.toLowerCase()}...`}
+        options={[{ value: ALL, label: label === "Category" ? "All categories" : `All ${label.toLowerCase()}s` }, ...options]}
+        className={cn("h-10", value && "border-brand/40 bg-brand-soft/40")}
+      />
+    </div>
   );
 }
 
@@ -435,7 +431,7 @@ function ExpiringPanel({ onShowAll }: { onShowAll: () => void }) {
               <ResourceIcon type={item.resourceType} size="md" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-title">{item.resourceTitle}</p>
-                <p className="truncate text-xs text-subtitle">{item.clientName}</p>
+                <p className="truncate text-xs text-subtitle">{item.projectName} · {item.clientName}</p>
                 <p className={cn("text-xs font-medium", tone === "danger" ? "text-destructive" : "text-warn-text")}>
                   {expiryLabel(item.expiresAt)}
                 </p>

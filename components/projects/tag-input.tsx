@@ -25,8 +25,8 @@ export function TagInput({ value, onChange }: { value: string[]; onChange: (tags
     <div className="relative">
       <div
         className={cn(
-          "flex min-h-11 flex-wrap items-center gap-1.5 rounded-lg border border-transparent bg-field/70 px-3 py-1.5 transition-all",
-          focused && "border-ring bg-background ring-3 ring-ring/50",
+          "flex min-h-10 flex-wrap items-center gap-1.5 rounded-lg border border-input bg-field/50 px-3 py-1.5 transition-all",
+          focused && "border-ring/60 bg-background",
         )}
       >
         <TagIcon className="size-4 text-subtitle" />

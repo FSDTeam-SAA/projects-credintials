@@ -1,9 +1,10 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 import type {
   ExpiringItem,
+  Client,
   Lookup,
   Paged,
   Project,
@@ -44,6 +45,7 @@ export function useProjectMeta() {
 }
 
 export type ProjectListParams = {
+  clientId?: string;
   search?: string;
   category?: string;
   profileName?: string;
@@ -67,6 +69,22 @@ export function useProject(id: string) {
   return useQuery({
     queryKey: qk.project(id),
     queryFn: () => api.get<{ project: Project }>(`/projects/${id}`).then((r) => r.project),
+  });
+}
+
+export function useClients(params: { search?: string; page?: number; limit?: number }) {
+  return useQuery({ queryKey: ["clients", "list", params], queryFn: () => api.get<Paged<Client>>("/clients", params), placeholderData: keepPreviousData });
+}
+
+export function useClient(id: string) {
+  return useQuery({ queryKey: ["clients", "detail", id], queryFn: () => api.get<{ client: Client }>(`/clients/${id}`).then(r => r.client), enabled: !!id });
+}
+
+export function useClientOptions(search: string) {
+  return useInfiniteQuery({
+    queryKey: ["clients", "options", search], initialPageParam: 1,
+    queryFn: ({ pageParam }) => api.get<Paged<Client>>("/clients", { search, page: pageParam, limit: 50 }),
+    getNextPageParam: last => last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined,
   });
 }
 

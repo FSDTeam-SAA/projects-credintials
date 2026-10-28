@@ -25,9 +25,9 @@ export function FormRow({
   action?: React.ReactNode;
 }) {
   return (
-    <div className={cn("flex flex-col gap-2", className)} data-invalid={!!error || undefined}>
+    <div className={cn("flex min-w-0 flex-col gap-1.5", className)} data-invalid={!!error || undefined}>
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={htmlFor} className={cn("text-base font-medium text-foreground", labelClassName)}>
+        <Label htmlFor={htmlFor} className={cn("text-sm font-medium text-foreground", labelClassName)}>
           {label}
           {required && <span className="text-destructive">*</span>}
         </Label>

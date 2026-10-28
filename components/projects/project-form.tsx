@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,15 +18,17 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ClientSelector } from "@/components/clients/client-selector";
+import { ProjectLinksEditor } from "./project-links-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { useCan } from "@/components/app/current-user";
 import { FormRow } from "@/components/form-row";
 import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api";
-import type { ParsedEnvEntry } from "@/lib/credentials";
+import { mergeEnvCredentials, type ParsedEnvEntry } from "@/lib/credentials";
 import { applyServerErrors } from "@/lib/hooks";
 import { useCategories, useProfileNames, useProjectMeta } from "@/lib/queries";
 import type { Project, ResourceTemplate } from "@/lib/types";
@@ -42,6 +44,7 @@ const POPULAR = ["vps", "domain", "mongodb", "cloudinary", "github", "app-store"
 
 export function ProjectForm({ project, initial }: { project?: Project; initial?: ProjectFormValues }) {
   const router = useRouter();
+  const params = useSearchParams();
   const queryClient = useQueryClient();
   const can = useCan();
   const { data: meta } = useProjectMeta();
@@ -51,7 +54,7 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
   const isEdit = !!project;
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
-    defaultValues: initial ?? emptyProject,
+    defaultValues: initial ?? { ...emptyProject, clientId: params.get("clientId") ?? "" },
     mode: "onSubmit",
     reValidateMode: "onChange",
   });
@@ -138,15 +141,7 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
     } else {
       const path = `resources.${target.index}.credentials` as const;
       const existing = getValues(path);
-      // Update values for keys that already exist, append the rest.
-      const byLabel = new Map(existing.map((c, i) => [c.label.toLowerCase(), i]));
-      const merged = [...existing];
-      for (const c of creds) {
-        const i = byLabel.get(c.label.toLowerCase());
-        if (i !== undefined) merged[i] = { ...merged[i]!, value: c.value };
-        else merged.push(c);
-      }
-      setValue(path, merged, { shouldDirty: true });
+      setValue(path, mergeEnvCredentials(existing, entries, target.mode), { shouldDirty: true });
       scrollToResource(target.index);
     }
     toast.success(`Imported ${entries.length} value${entries.length === 1 ? "" : "s"}`);
@@ -154,12 +149,14 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
 
   async function onSubmit(values: ProjectFormValues) {
     try {
+      const payload = { ...values, liveSites: values.liveSites.filter(l => l.label || l.url), repositories: values.repositories.filter(l => l.label || l.url) };
       const saved = isEdit
-        ? await api.put<{ project: Project }>(`/projects/${project.id}`, values)
-        : await api.post<{ project: Project }>("/projects", values);
+        ? await api.put<{ project: Project }>(`/projects/${project.id}`, payload)
+        : await api.post<{ project: Project }>("/projects", payload);
       savedRef.current = true;
       queryClient.setQueryData(["projects", "detail", saved.project.id], saved.project);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["profile-names"] });
       reset(values);
@@ -205,12 +202,12 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
           {can.manageLookups && (
             <div className="flex gap-2">
               {!categories.length && (
-                <Button asChild size="sm" variant="outline-warn">
+                <Button asChild size="sm" variant="outline">
                   <Link href="/categories">Add category</Link>
                 </Button>
               )}
               {!profiles.length && (
-                <Button asChild size="sm" variant="outline-warn">
+                <Button asChild size="sm" variant="outline">
                   <Link href="/profile-names">Add profile name</Link>
                 </Button>
               )}
@@ -219,85 +216,70 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
         </div>
       )}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[1fr_300px]">
+      <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col gap-6">
           {/* Project information */}
-          <section className="animate-fade-up rounded-xl border bg-card p-4 shadow-surface md:p-5">
-            <h2 className="mb-4 text-xl font-medium text-title">Project Information</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormRow label="Client name" htmlFor="clientName" required error={errors.clientName?.message} labelClassName="text-sm">
-                <Input id="clientName" placeholder="e.g. giveandtake638" autoFocus={!isEdit} aria-invalid={!!errors.clientName} {...register("clientName")} />
+          <section className="@container min-w-0 animate-fade-up rounded-xl border bg-card p-4 shadow-surface md:p-5">
+            <h2 className="mb-4 text-lg font-semibold text-title">Project Information</h2>
+            <div className="grid min-w-0 gap-4 @lg:grid-cols-2">
+              <FormRow label="Client" htmlFor="clientId" required error={errors.clientId?.message} labelClassName="text-sm">
+                <Controller control={control} name="clientId" render={({ field }) => <ClientSelector id="clientId" className="h-10" value={field.value} onChange={field.onChange} onBlur={field.onBlur} triggerRef={field.ref} invalid={!!errors.clientId} />} />
               </FormRow>
-              <FormRow label="Profile name" htmlFor="profileName" required error={errors.profileName?.message} labelClassName="text-sm">
-                <Controller
-                  control={control}
-                  name="profileName"
-                  render={({ field }) => (
-                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="profileName" ref={field.ref} onBlur={field.onBlur} className="w-full" aria-invalid={!!errors.profileName}>
-                        <SelectValue placeholder="Select profile name" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profiles.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+              <FormRow label="Project name" htmlFor="projectName" required error={errors.name?.message} labelClassName="text-sm">
+                <Input id="projectName" className="h-10" placeholder="e.g. Delivery Platform" autoFocus={!isEdit} maxLength={120} aria-invalid={!!errors.name} {...register("name")} />
               </FormRow>
-              <FormRow label="Category" htmlFor="category" required error={errors.category?.message} labelClassName="text-sm">
-                <Controller
-                  control={control}
-                  name="category"
-                  render={({ field }) => (
-                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="category" ref={field.ref} onBlur={field.onBlur} className="w-full" aria-invalid={!!errors.category}>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormRow>
-              <FormRow label="Service line" htmlFor="serviceLine" required error={errors.serviceLine?.message} labelClassName="text-sm">
-                <Controller
-                  control={control}
-                  name="serviceLine"
-                  render={({ field }) => (
-                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="serviceLine" ref={field.ref} onBlur={field.onBlur} className="w-full" aria-invalid={!!errors.serviceLine}>
-                        <SelectValue placeholder="Select service line" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {meta.serviceLines.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormRow>
-              <FormRow label="Live site URL" htmlFor="liveUrl" error={errors.liveUrl?.message} labelClassName="text-sm">
-                <Input id="liveUrl" placeholder="https://www.client-site.com" {...register("liveUrl")} />
-              </FormRow>
-              <FormRow label="Repository URL" htmlFor="repoUrl" error={errors.repoUrl?.message} labelClassName="text-sm">
-                <Input id="repoUrl" placeholder="https://github.com/org/repo" {...register("repoUrl")} />
-              </FormRow>
-              <FormRow label="Tags" className="md:col-span-2" labelClassName="text-sm">
+              <div className="grid min-w-0 gap-4 @lg:col-span-2 @lg:grid-cols-3">
+                <FormRow label="Profile name" htmlFor="profileName" required error={errors.profileName?.message} labelClassName="text-sm">
+                  <Controller
+                    control={control}
+                    name="profileName"
+                    render={({ field }) => (
+                      <Combobox
+                        id="profileName" className="h-10" name={field.name} ref={field.ref} onBlur={field.onBlur}
+                        value={field.value} onValueChange={field.onChange} aria-invalid={!!errors.profileName}
+                        placeholder="Select profile name" searchPlaceholder="Search profiles..."
+                        options={profiles.map(p => ({ value: p.id, label: p.name }))}
+                      />
+                    )}
+                  />
+                </FormRow>
+                <FormRow label="Category" htmlFor="category" required error={errors.category?.message} labelClassName="text-sm">
+                  <Controller
+                    control={control}
+                    name="category"
+                    render={({ field }) => (
+                      <Combobox
+                        id="category" className="h-10" name={field.name} ref={field.ref} onBlur={field.onBlur}
+                        value={field.value} onValueChange={field.onChange} aria-invalid={!!errors.category}
+                        placeholder="Select category" searchPlaceholder="Search categories..."
+                        options={categories.map(c => ({ value: c.id, label: c.name }))}
+                      />
+                    )}
+                  />
+                </FormRow>
+                <FormRow label="Service line" htmlFor="serviceLine" required error={errors.serviceLine?.message} labelClassName="text-sm">
+                  <Controller
+                    control={control}
+                    name="serviceLine"
+                    render={({ field }) => (
+                      <Combobox
+                        id="serviceLine" className="h-10" name={field.name} ref={field.ref} onBlur={field.onBlur}
+                        value={field.value} onValueChange={field.onChange} aria-invalid={!!errors.serviceLine}
+                        placeholder="Select service line" searchPlaceholder="Search service lines..."
+                        options={meta.serviceLines.map(s => ({ value: s, label: s }))}
+                      />
+                    )}
+                  />
+                </FormRow>
+              </div>
+              <div className="flex min-w-0 flex-col gap-4 @lg:col-span-2">
+                <ProjectLinksEditor name="liveSites" control={control} register={register} errors={errors} />
+                <ProjectLinksEditor name="repositories" control={control} register={register} errors={errors} />
+              </div>
+              <FormRow label="Tags" className="@lg:col-span-2" labelClassName="text-sm">
                 <Controller control={control} name="tags" render={({ field }) => <TagInput value={field.value} onChange={field.onChange} />} />
               </FormRow>
-              <FormRow label="Project notes" htmlFor="notes" className="md:col-span-2" labelClassName="text-sm" hint="Encrypted like credentials.">
+              <FormRow label="Project notes" htmlFor="notes" className="@lg:col-span-2" labelClassName="text-sm" hint="Encrypted like credentials.">
                 <Textarea id="notes" placeholder="Deployment steps, client contacts, gotchas…" {...register("notes")} />
               </FormRow>
             </div>
@@ -305,23 +287,23 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
 
           {/* Resources */}
           <section className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-medium text-title md:text-2xl">Resources &amp; Access</h2>
+                <h2 className="text-lg font-semibold text-title">Resources &amp; Access</h2>
                 <p className="text-sm text-subtitle">Servers, accounts, keys and links for this project.</p>
               </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline-warn" size="pill" onClick={() => { setEnvTarget(undefined); setEnvOpen(true); }}>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Button className="flex-1 sm:flex-none" type="button" variant="outline" size="pill" onClick={() => { setEnvTarget(undefined); setEnvOpen(true); }}>
                   <FileUpIcon /> Import .env
                 </Button>
-                <Button type="button" size="pill" className="group" onClick={() => setPickerOpen(true)}>
+                <Button type="button" size="pill" className="group flex-1 sm:flex-none" onClick={() => setPickerOpen(true)}>
                   <PlusIcon className="transition-transform group-hover:rotate-90" /> Add New
                 </Button>
               </div>
             </div>
 
             {fields.length === 0 ? (
-              <div className="animate-fade-up rounded-xl border border-dashed border-warn/70 bg-warn-soft/30 p-5">
+              <div className="animate-fade-up rounded-xl border border-dashed border-border bg-muted/20 p-5">
                 <p className="mb-4 text-sm font-medium text-title">Quick start — what does this project use?</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {POPULAR.map((key, i) => {
@@ -388,7 +370,7 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
                 <button
                   type="button"
                   onClick={() => setPickerOpen(true)}
-                  className="group flex items-center justify-center gap-2 rounded-xl border border-dashed border-warn/70 py-4 text-sm font-medium text-subtitle transition-all hover:border-brand hover:bg-brand-soft/40 hover:text-brand"
+                  className="group flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-medium text-subtitle transition-all hover:border-brand hover:bg-brand-soft/40 hover:text-brand"
                 >
                   <PlusIcon className="size-4 transition-transform group-hover:rotate-90" /> Add another resource
                 </button>
@@ -398,7 +380,7 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
         </div>
 
         {/* Outline / checklist */}
-        <aside className="sticky top-24 hidden animate-fade-up flex-col gap-4 [animation-delay:120ms] xl:flex">
+        <aside className="sticky top-24 hidden animate-fade-up flex-col gap-4 [animation-delay:120ms] 2xl:flex">
           <div className="rounded-xl border bg-card p-4">
             <p className="mb-3 text-sm font-semibold text-title">Outline</p>
             {resources.length === 0 ? (
@@ -442,14 +424,14 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
         <div className="mx-auto flex max-w-[1580px] items-center justify-between gap-3 px-4 py-3 md:px-8">
           <p className="flex items-center gap-2 text-sm text-subtitle">
             <span className={cn("size-2 rounded-full transition-colors", isDirty ? "animate-pulse bg-warn" : "bg-brand")} />
-            {isDirty ? "Unsaved changes" : "All changes saved"}
-            <kbd className="ml-2 hidden rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] md:inline">Ctrl S</kbd>
+            <span className="sr-only sm:not-sr-only">{isDirty ? "Unsaved changes" : "All changes saved"}</span>
+            <kbd className="ml-2 hidden rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] lg:inline">Ctrl S</kbd>
           </p>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline-warn" className="h-11 w-28 md:w-[160px]" onClick={() => router.back()}>
+          <div className="flex min-w-0 flex-1 gap-2 sm:flex-none">
+            <Button type="button" variant="outline" className="h-11 flex-1 sm:w-28 sm:flex-none md:w-[160px]" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit" className="h-11 w-28 md:w-[200px]" disabled={isSubmitting}>
+            <Button type="submit" className="h-11 flex-1 sm:w-28 sm:flex-none md:w-[200px]" disabled={isSubmitting}>
               {isSubmitting ? <Loader2Icon className="animate-spin" /> : <SaveIcon />}
               {isEdit ? "Save" : "Create"}
             </Button>

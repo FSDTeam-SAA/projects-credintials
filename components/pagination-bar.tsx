@@ -18,7 +18,7 @@ function pages(current: number, total: number): (number | "…")[] {
 }
 
 const box =
-  "grid size-10 place-items-center rounded-[4px] border border-warn text-base font-medium text-title transition-all duration-200";
+  "grid size-8 place-items-center rounded-lg border border-border text-sm font-medium text-title transition-all duration-200";
 
 export function PaginationBar({ meta, onPageChange, className }: { meta?: PageMeta; onPageChange: (p: number) => void; className?: string }) {
   if (!meta) return null;
@@ -27,15 +27,15 @@ export function PaginationBar({ meta, onPageChange, className }: { meta?: PageMe
   const to = Math.min(page * limit, total);
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-4 px-6 py-5", className)}>
-      <p className="text-base font-medium text-subtitle">
+    <div className={cn("flex flex-wrap items-center justify-between gap-4 px-4 py-3", className)}>
+      <p className="text-xs text-subtitle">
         Showing {from} to {to} of {total} results
       </p>
       {totalPages > 1 && (
         <nav className="flex items-center gap-2" aria-label="Pagination">
           <button
             type="button"
-            className={cn(box, "bg-muted hover:bg-warn-soft disabled:opacity-40")}
+            className={cn(box, "bg-muted hover:bg-muted disabled:opacity-40")}
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
             aria-label="Previous page"
@@ -56,8 +56,8 @@ export function PaginationBar({ meta, onPageChange, className }: { meta?: PageMe
                 className={cn(
                   box,
                   p === page
-                    ? "scale-105 border-brand bg-brand text-white shadow-sm shadow-brand/30"
-                    : "hover:-translate-y-0.5 hover:bg-warn-soft",
+                    ? "border-brand bg-brand text-white"
+                    : "hover:bg-muted",
                 )}
               >
                 {p}
@@ -66,7 +66,7 @@ export function PaginationBar({ meta, onPageChange, className }: { meta?: PageMe
           )}
           <button
             type="button"
-            className={cn(box, "hover:bg-warn-soft disabled:opacity-40")}
+            className={cn(box, "hover:bg-muted disabled:opacity-40")}
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
             aria-label="Next page"

@@ -17,7 +17,7 @@ export function Pill({ tone = "gray", className, children }: { tone?: Tone; clas
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm leading-none whitespace-nowrap",
+        "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs leading-none whitespace-nowrap",
         toneClass[tone],
         className,
       )}
