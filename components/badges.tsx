@@ -30,6 +30,7 @@ export function Pill({ tone = "gray", className, children }: { tone?: Tone; clas
 const serviceTone: Record<string, Tone> = {
   App: "green",
   FSD: "yellow",
+  Both: "blue",
 };
 
 export function ServiceLineBadge({ value, className }: { value: string; className?: string }) {

@@ -52,7 +52,8 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: initial ?? emptyProject,
-    mode: "onTouched",
+    mode: "onSubmit",
+    reValidateMode: "onChange",
   });
   const {
     control,
@@ -227,13 +228,13 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
               <FormRow label="Client name" htmlFor="clientName" required error={errors.clientName?.message} labelClassName="text-sm">
                 <Input id="clientName" placeholder="e.g. giveandtake638" autoFocus={!isEdit} aria-invalid={!!errors.clientName} {...register("clientName")} />
               </FormRow>
-              <FormRow label="Profile name" required error={errors.profileName?.message} labelClassName="text-sm">
+              <FormRow label="Profile name" htmlFor="profileName" required error={errors.profileName?.message} labelClassName="text-sm">
                 <Controller
                   control={control}
                   name="profileName"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full border-warn/70" aria-invalid={!!errors.profileName}>
+                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="profileName" ref={field.ref} onBlur={field.onBlur} className="w-full" aria-invalid={!!errors.profileName}>
                         <SelectValue placeholder="Select profile name" />
                       </SelectTrigger>
                       <SelectContent>
@@ -247,13 +248,13 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
                   )}
                 />
               </FormRow>
-              <FormRow label="Category" required error={errors.category?.message} labelClassName="text-sm">
+              <FormRow label="Category" htmlFor="category" required error={errors.category?.message} labelClassName="text-sm">
                 <Controller
                   control={control}
                   name="category"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full border-warn/70" aria-invalid={!!errors.category}>
+                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="category" ref={field.ref} onBlur={field.onBlur} className="w-full" aria-invalid={!!errors.category}>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
@@ -267,13 +268,13 @@ export function ProjectForm({ project, initial }: { project?: Project; initial?:
                   )}
                 />
               </FormRow>
-              <FormRow label="Service line" required error={errors.serviceLine?.message} labelClassName="text-sm">
+              <FormRow label="Service line" htmlFor="serviceLine" required error={errors.serviceLine?.message} labelClassName="text-sm">
                 <Controller
                   control={control}
                   name="serviceLine"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full border-warn/70" aria-invalid={!!errors.serviceLine}>
+                    <Select name={field.name} value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="serviceLine" ref={field.ref} onBlur={field.onBlur} className="w-full" aria-invalid={!!errors.serviceLine}>
                         <SelectValue placeholder="Select service line" />
                       </SelectTrigger>
                       <SelectContent>
